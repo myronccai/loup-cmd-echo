@@ -1,98 +1,60 @@
 @mode(host.dual)
 
-# Command-line parsing. Loup 1.26 has no CLI library, so arguments are
-# parsed by hand into an Options value.
-#
-# Grammar: [OPTIONS] COMMAND [OPERANDS...]
-#   Options may appear anywhere before `--`; everything after `--` is an
-#   operand. Value options accept `--name VALUE` and `--name=VALUE`.
-
-pub const DEFAULT_GREETING: string = "Hello";
+# Command-line parsing for echo. GNU echo is unusual: it accepts only the
+# single-letter options n, e and E (combinable, as in `-ne`), stops at the
+# first argument that is not such an option, and treats `--` as an ordinary
+# operand. `--help` and `--version` are recognised only as the sole argument.
 
 pub struct Options {
-    pub command: string;
-    pub operands: list[string];
     pub help: bool;
     pub version: bool;
-    pub verbose: bool;
-    pub shout: bool;
-    pub greeting: string;
+    pub newline: bool;
+    pub escapes: bool;
+    pub operands: list[string];
+}
+
+# Whether `arg` is an echo option: a dash followed only by n, e and E.
+pub func is_echo_option(arg: string): bool {
+    if (arg.len() < 2 or !arg.startsWith("-")) {
+        return false;
+    }
+    for (ch in arg.slice(1)) {
+        if (ch != "n" and ch != "e" and ch != "E") {
+            return false;
+        }
+    }
+    return true;
 }
 
 pub func parse_args(argv: list[string]): Result[Options, string] {
-    var command = "";
-    var operands: list[string] = [];
     var help = false;
     var version = false;
-    var verbose = false;
-    var shout = false;
-    var greeting = DEFAULT_GREETING;
-    var only_operands = false;
+    if (argv.len() == 1) {
+        help = argv[0] == "--help";
+        version = argv[0] == "--version";
+    }
 
+    var newline = true;
+    var escapes = false;
     var i = 0;
-    while (i < argv.len()) {
-        let arg = argv[i];
-        i += 1;
-
-        if (only_operands or arg == "-" or !arg.startsWith("-")) {
-            if (command.is_empty()) {
-                command = arg;
+    while (i < argv.len() and is_echo_option(argv[i])) {
+        for (ch in argv[i].slice(1)) {
+            if (ch == "n") {
+                newline = false;
+            } else if (ch == "e") {
+                escapes = true;
             } else {
-                operands.push(arg);
+                escapes = false;
             }
-            continue;
         }
-        if (arg == "--") {
-            only_operands = true;
-            continue;
-        }
-
-        # Split `--name=value` into its name and inline value.
-        var name = arg;
-        var inline_value: Option[string] = None;
-        if (arg.startsWith("--") and arg.contains("=")) {
-            let parts = arg.split("=");
-            name = parts[0];
-            inline_value = Some(parts.slice(1).join("="));
-        }
-
-        if (name == "-g" or name == "--greeting") {
-            match inline_value {
-                Some(v) => { greeting = v; },
-                None => {
-                    if (i >= argv.len()) {
-                        return Err(i"option '{$ name $}' requires a value");
-                    }
-                    greeting = argv[i];
-                    i += 1;
-                },
-            }
-            continue;
-        }
-
-        if (inline_value.is_some()) {
-            return Err(i"option '{$ name $}' does not take a value");
-        }
-        if (name == "-h" or name == "--help") {
-            help = true;
-        } else if (name == "-V" or name == "--version") {
-            version = true;
-        } else if (name == "-v" or name == "--verbose") {
-            verbose = true;
-        } else if (name == "--shout") {
-            shout = true;
-        } else {
-            return Err(i"unknown option '{$ name $}'");
-        }
+        i += 1;
     }
 
     return Ok(Options(
-        command = command,
-        operands = operands,
         help = help,
         version = version,
-        verbose = verbose,
-        shout = shout,
-        greeting = greeting,
+        newline = newline,
+        escapes = escapes,
+        operands = argv.slice(i),
     ));
 }

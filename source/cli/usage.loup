@@ -1,28 +1,38 @@
 @mode(host.dual)
 
-from appinfo import (APP_NAME, APP_VERSION, APP_SUMMARY);
-from cli.args import (DEFAULT_GREETING);
+from appinfo import (APP_NAME, APP_VERSION);
 
 pub func usage(): string {
     let lines = [
-        i"usage: {$ APP_NAME $} [OPTIONS] COMMAND [ARGS...]",
+        i"usage: {$ APP_NAME $} [SHORT-OPTION]... [STRING]...",
+        i"  or:  {$ APP_NAME $} LONG-OPTION",
         "",
-        APP_SUMMARY,
+        "Echo the STRING(s) to standard output, separated by single spaces.",
         "",
-        "Commands:",
-        "  hello [NAME]          Print a greeting (NAME defaults to 'world')",
-        "  help                  Show this help",
+        "  -n             do not output the trailing newline",
+        "  -e             enable interpretation of backslash escapes",
+        "  -E             disable interpretation of backslash escapes (default)",
+        "      --help     display this help and exit",
+        "      --version  output version information and exit",
         "",
-        "Options:",
-        i"  -g, --greeting TEXT   Greeting used by 'hello' (default: {$ DEFAULT_GREETING $})",
-        "      --shout           Print the greeting in upper case",
-        "  -v, --verbose         Print diagnostic messages to stderr",
-        "  -h, --help            Show this help and exit",
-        "  -V, --version         Show the version and exit",
+        "If -e is in effect, the following sequences are recognized:",
+        "",
+        "  \\\\      backslash",
+        "  \\a      alert (BEL)",
+        "  \\b      backspace",
+        "  \\c      produce no further output",
+        "  \\e      escape",
+        "  \\f      form feed",
+        "  \\n      new line",
+        "  \\r      carriage return",
+        "  \\t      horizontal tab",
+        "  \\v      vertical tab",
+        "  \\0NNN   character with octal value NNN (1 to 3 digits)",
+        "  \\xHH    character with hexadecimal value HH (1 to 2 digits)",
     ];
     return lines.join("\n");
 }
 
 pub func version_line(): string {
-    return i"{$ APP_NAME $} {$ APP_VERSION $}";
+    return i"{$ APP_NAME $} (loup-cmd-{$ APP_NAME $}) {$ APP_VERSION $}";
 }

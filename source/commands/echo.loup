@@ -1,0 +1,123 @@
+@mode(host.dual)
+
+# echo: joins the operands with single spaces, optionally expanding
+# backslash escapes (-e) and dropping the trailing newline (-n).
+
+from appinfo import (EXIT_OK);
+from cli.args import (Options);
+
+# The result of expanding backslash escapes in one operand: the text, and
+# whether a `\c` asked for all further output to be suppressed.
+pub struct Expanded {
+    pub text: string;
+    pub stop: bool;
+}
+
+func code(n: int): string {
+    return str(char.of(n));
+}
+
+# The value of an octal digit, or -1.
+func octal_value(digit: string): int {
+    let i = "01234567".index_of(digit);
+    return if (digit.len() == 1 and i >= 0) { i } else { -1 };
+}
+
+# The value of a hexadecimal digit, or -1.
+func hex_value(digit: string): int {
+    let i = "0123456789abcdef".index_of(digit.toLowerCase());
+    return if (digit.len() == 1 and i >= 0) { i } else { -1 };
+}
+
+func simple_escape(esc: string): string {
+    return match esc {
+        "\\" => "\\",
+        "a" => code(7),
+        "b" => code(8),
+        "e" => code(27),
+        "f" => code(12),
+        "n" => "\n",
+        "r" => "\r",
+        "t" => "\t",
+        "v" => code(11),
+        _ => "",
+    };
+}
+
+pub func expand_escapes(text: string): Expanded {
+    var chars: list[string] = [];
+    for (ch in text) {
+        chars.push(ch);
+    }
+
+    var out = "";
+    var i = 0;
+    while (i < chars.len()) {
+        let ch = chars[i];
+        i += 1;
+        if (ch != "\\" or i >= chars.len()) {
+            out += ch;
+            continue;
+        }
+
+        let esc = chars[i];
+        i += 1;
+        let simple = simple_escape(esc);
+        if (simple.len() > 0) {
+            out += simple;
+        } else if (esc == "c") {
+            return Expanded(text = out, stop = true);
+        } else if (esc == "0") {
+            var value = 0;
+            var digits = 0;
+            while (digits < 3 and i < chars.len() and octal_value(chars[i]) >= 0) {
+                value = value * 8 + octal_value(chars[i]);
+                i += 1;
+                digits += 1;
+            }
+            out += code(value & 0xFF);
+        } else if (esc == "x" and i < chars.len() and hex_value(chars[i]) >= 0) {
+            var value = 0;
+            var digits = 0;
+            while (digits < 2 and i < chars.len() and hex_value(chars[i]) >= 0) {
+                value = value * 16 + hex_value(chars[i]);
+                i += 1;
+                digits += 1;
+            }
+            out += code(value);
+        } else {
+            out += "\\" + esc;
+        }
+    }
+    return Expanded(text = out, stop = false);
+}
+
+# The complete output for the parsed options, including any newline.
+pub func render(opts: Options): string {
+    var out = "";
+    var first = true;
+    for (arg in opts.operands) {
+        if (!first) {
+            out += " ";
+        }
+        first = false;
+        if (opts.escapes) {
+            let expanded = expand_escapes(arg);
+            out += expanded.text;
+            if (expanded.stop) {
+                return out;
+            }
+        } else {
+            out += arg;
+        }
+    }
+    if (opts.newline) {
+        out += "\n";
+    }
+    return out;
+}
+
+pub func run_echo(opts: Options): int {
+    print(render(opts));
+    return EXIT_OK;
+}

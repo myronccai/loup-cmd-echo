@@ -1,0 +1,51 @@
+@mode(host.dual)
+
+from debug.assert import (expect, expectEq);
+from cli.args import (parse_args);
+from commands.echo import (expand_escapes, render);
+
+func test_plain_operands_joined_by_spaces(): void {
+    expectEq(render(parse_args(["a", "b  c", "d"]).unwrap()), "a b  c d\n", "joined");
+}
+
+func test_no_operands_prints_newline(): void {
+    let none: list[string] = [];
+    expectEq(render(parse_args(none).unwrap()), "\n", "just a newline");
+}
+
+func test_no_newline(): void {
+    expectEq(render(parse_args(["-n", "a", "b"]).unwrap()), "a b", "-n");
+}
+
+func test_escapes_off_by_default(): void {
+    expectEq(render(parse_args(["a\\tb"]).unwrap()), "a\\tb\n", "backslash kept");
+}
+
+func test_simple_escapes(): void {
+    expectEq(expand_escapes("a\\tb\\nc\\\\d").text, "a\tb\nc\\d", "tab, newline, backslash");
+    expectEq(expand_escapes("\\r\\v\\f").text.len(), 3, "three control characters");
+}
+
+func test_octal_escapes(): void {
+    expectEq(expand_escapes("\\0101").text, "A", "\\0101 is A");
+    expectEq(expand_escapes("\\0101b").text, "Ab", "at most three digits");
+    expectEq(expand_escapes("\\01011").text, "A1", "fourth digit is literal");
+}
+
+func test_hex_escapes(): void {
+    expectEq(expand_escapes("\\x41").text, "A", "\\x41");
+    expectEq(expand_escapes("\\x414").text, "A4", "at most two digits");
+    expectEq(expand_escapes("\\xg").text, "\\xg", "no digits keeps \\x");
+}
+
+func test_unknown_escape_is_kept(): void {
+    expectEq(expand_escapes("\\q").text, "\\q", "unknown");
+    expectEq(expand_escapes("end\\").text, "end\\", "trailing backslash");
+}
+
+func test_backslash_c_stops_output(): void {
+    let e = expand_escapes("ab\\cde");
+    expectEq(e.text, "ab", "text before \\c");
+    expect(e.stop, "stop flag");
+    expectEq(render(parse_args(["-e", "x\\cy", "z"]).unwrap()), "x", "no newline and no later operands");
+}
