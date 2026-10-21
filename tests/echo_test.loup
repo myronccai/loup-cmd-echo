@@ -9,7 +9,7 @@
 
 from debug.assert import (expect, expectEq);
 from cli.args import (parse_args);
-from commands.echo import (expand_escapes, render);
+from commands.echo import (expand_escapes, render, digit_value);
 
 func test_plain_operands_joined_by_spaces(): void {
     expectEq(render(parse_args(["a", "b  c", "d"]).unwrap()), "a b  c d\n", "joined");
@@ -37,10 +37,23 @@ func test_octal_escapes(): void {
     expectEq(expand_escapes("\\0101").text, "A", "\\0101 is A");
     expectEq(expand_escapes("\\0101b").text, "Ab", "at most three digits");
     expectEq(expand_escapes("\\01011").text, "A1", "fourth digit is literal");
+    expectEq(expand_escapes("\\0").text.byteLength(), 1, "no digits is NUL");
+    expectEq(expand_escapes("\\0501").text, "A", "0501 keeps the low byte");
+    expectEq(expand_escapes("\\08").text.byteLength(), 2, "8 ends the octal digits");
+}
+
+func test_digit_values(): void {
+    expectEq(digit_value("7", 8), 7, "octal 7");
+    expectEq(digit_value("8", 8), -1, "8 is not octal");
+    expectEq(digit_value("f", 16), 15, "hex f");
+    expectEq(digit_value("F", 16), 15, "hex F");
+    expectEq(digit_value("g", 16), -1, "g is not hex");
+    expectEq(digit_value("", 16), -1, "empty");
 }
 
 func test_hex_escapes(): void {
     expectEq(expand_escapes("\\x41").text, "A", "\\x41");
+    expectEq(expand_escapes("\\x4a\\x4A").text, "JJ", "either case");
     expectEq(expand_escapes("\\x414").text, "A4", "at most two digits");
     expectEq(expand_escapes("\\xg").text, "\\xg", "no digits keeps \\x");
 }

@@ -22,16 +22,10 @@ func code(n: int): string {
     return str(char.of(n));
 }
 
-# The value of an octal digit, or -1.
-func octal_value(digit: string): int {
-    let i = "01234567".index_of(digit);
-    return if (digit.len() == 1 and i >= 0) { i } else { -1 };
-}
-
-# The value of a hexadecimal digit, or -1.
-func hex_value(digit: string): int {
+# The value of `digit` in `base` (8 or 16, either case), or -1.
+pub func digit_value(digit: string, base: int): int {
     let i = "0123456789abcdef".index_of(digit.toLowerCase());
-    return if (digit.len() == 1 and i >= 0) { i } else { -1 };
+    return if (digit.len() == 1 and i >= 0 and i < base) { i } else { -1 };
 }
 
 func simple_escape(esc: string): string {
@@ -61,6 +55,23 @@ pub func expand_escapes(text: string): Expanded {
     # backslash are copied as written, as GNU echo does.
     var out = "";
     var i = 0;
+
+    # The digits of \0NNN and \xHH: up to `max_digits` digits in `base`
+    # from the cursor. A nested function so that it can move the loop's
+    # cursor `i` itself (`nonlocal`) instead of returning it beside the
+    # value.
+    func take_number(max_digits: int, base: int): int {
+        nonlocal i;
+        var value = 0;
+        var digits = 0;
+        while (digits < max_digits and i < chars.len() and digit_value(chars[i], base) >= 0) {
+            value = value * base + digit_value(chars[i], base);
+            i += 1;
+            digits += 1;
+        }
+        return value;
+    }
+
     while (i < chars.len()) {
         let ch = chars[i];
         i += 1;
@@ -77,24 +88,10 @@ pub func expand_escapes(text: string): Expanded {
         } else if (esc == "c") {
             return Expanded(text = out, stop = true);
         } else if (esc == "0") {
-            var value = 0;
-            var digits = 0;
-            while (digits < 3 and i < chars.len() and octal_value(chars[i]) >= 0) {
-                value = value * 8 + octal_value(chars[i]);
-                i += 1;
-                digits += 1;
-            }
             # Three octal digits reach 0777; like GNU, keep the low byte.
-            out += code(value & 0xFF);
-        } else if (esc == "x" and i < chars.len() and hex_value(chars[i]) >= 0) {
-            var value = 0;
-            var digits = 0;
-            while (digits < 2 and i < chars.len() and hex_value(chars[i]) >= 0) {
-                value = value * 16 + hex_value(chars[i]);
-                i += 1;
-                digits += 1;
-            }
-            out += code(value);
+            out += code(take_number(3, 8) & 0xFF);
+        } else if (esc == "x" and i < chars.len() and digit_value(chars[i], 16) >= 0) {
+            out += code(take_number(2, 16));
         } else {
             out += "\\" + esc;
         }
