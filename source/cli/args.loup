@@ -4,6 +4,9 @@
 # single-letter options n, e and E (combinable, as in `-ne`), stops at the
 # first argument that is not such an option, and treats `--` as an ordinary
 # operand. `--help` and `--version` are recognised only as the sole argument.
+#
+# Runtime: host.dual. Compiled into the native binary build/echo by `make
+# build`; `loup run source/main.loup` interprets the same code.
 
 pub struct Options {
     pub help: bool;

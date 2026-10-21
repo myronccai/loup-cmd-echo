@@ -1,5 +1,12 @@
 @mode(host.dual)
 
+# Unit tests for echo's argument parsing (cli.args): option letters, where
+# option parsing stops, and when --help and --version count.
+#
+# Runtime: host.dual, run by the test runner: `make test` interprets this
+# file with Stage0 (`loup-bootstrap test`, source/ on LOUPPATH), one test
+# per `func test_*()`. It is not part of the binary.
+
 from debug.assert import (expect, expectEq);
 from cli.args import (parse_args, is_echo_option);
 

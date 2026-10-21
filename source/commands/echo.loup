@@ -2,6 +2,11 @@
 
 # echo: joins the operands with single spaces, optionally expanding
 # backslash escapes (-e) and dropping the trailing newline (-n).
+#
+# Runtime: host.dual. Compiled into the native binary build/echo by `make
+# build`; `loup run source/main.loup` interprets the same code. Everything
+# but run_echo is a pure function returning the text, so the unit tests can
+# check output without capturing stdout.
 
 from appinfo import (EXIT_OK);
 from cli.args import (Options);
@@ -50,6 +55,10 @@ pub func expand_escapes(text: string): Expanded {
         chars.push(ch);
     }
 
+    # One pass over the characters: a backslash takes the next character as
+    # the escape letter, and \0 and \x then take up to three octal or two
+    # hex digits. An unknown escape, `\x` with no digit and a trailing
+    # backslash are copied as written, as GNU echo does.
     var out = "";
     var i = 0;
     while (i < chars.len()) {
@@ -75,6 +84,7 @@ pub func expand_escapes(text: string): Expanded {
                 i += 1;
                 digits += 1;
             }
+            # Three octal digits reach 0777; like GNU, keep the low byte.
             out += code(value & 0xFF);
         } else if (esc == "x" and i < chars.len() and hex_value(chars[i]) >= 0) {
             var value = 0;
